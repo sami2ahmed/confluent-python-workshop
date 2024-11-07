@@ -80,9 +80,9 @@ SSH into your VM using the provided public IP, username, and password. Use the s
 If successful, you should see a welcome page.
     ![success](images/success.png)
 
-## Confluent Python Client
+## Confluent Python Client 
 
-Create a Confluent Python client:
+Create a Confluent Python producer:
 
 1. In your IDE, create a file `producer.py`.
 2. Paste the following contents into `producer.py`:
@@ -129,9 +129,8 @@ if __name__ == '__main__':
 3. Replace the bootstrap server, cluster API key, and secret with your own values.
 4. Copy `producer.py` to your clipboard.
 5. In sshwifty, create `producer.py` using a text editor like nano: `nano producer.py`.
-6. Paste the contents and save the file.
+6. Paste the contents and save the file. note: If you are using nano, then you can **ctrl+O** band **enter** 
     ![producer](images/producer.png)
-
 7. Run the producer: `python3 producer.py`.
 8. Verify data output in the terminal.
     ![producer](images/producer-success.png)
@@ -139,3 +138,67 @@ if __name__ == '__main__':
 9. In the Confluent Cloud UI, navigate to the `purchases` topic and view the messages.
     ![message](images/message-view.png)
 
+Create a Confluent Python consumer:
+
+1. Now we will follow a similar process for the consumption of our messages. In your IDE, create a file `consumer.py`.
+2. Paste the following contents into `consumer.py`:
+
+```
+#!/usr/bin/env python
+
+from confluent_kafka import Consumer
+
+if __name__ == '__main__':
+
+    config = {
+        # User-specific properties that you must set
+        'bootstrap.servers': '<BOOTSTRAP SERVERS>',
+        'sasl.username':     '<CLUSTER API KEY>',
+        'sasl.password':     '<CLUSTER API SECRET>',
+
+        # Fixed properties
+        'security.protocol': 'SASL_SSL',
+        'sasl.mechanisms':   'PLAIN',
+        'group.id':          'kafka-python-getting-started',
+        'auto.offset.reset': 'earliest'
+    }
+
+    # Create Consumer instance
+    consumer = Consumer(config)
+
+    # Subscribe to topic
+    topic = "purchases"
+    consumer.subscribe([topic])
+
+    # Poll for new messages from Kafka and print them.
+    try:
+        while True:
+            msg = consumer.poll(1.0)
+            if msg is None:
+                # Initial message consumption may take up to
+                # `session.timeout.ms` for the consumer group to
+                # rebalance and start consuming
+                print("Waiting...")
+            elif msg.error():
+                print("ERROR: %s".format(msg.error()))
+            else:
+                # Extract the (optional) key and value, and print.
+                print("Consumed event from topic {topic}: key = {key:12} value = {value:12}".format(
+                    topic=msg.topic(), key=msg.key().decode('utf-8'), value=msg.value().decode('utf-8')))
+    except KeyboardInterrupt:
+        pass
+    finally:
+        # Leave group and commit final offsets
+        consumer.close()
+```
+3. Replace the bootstrap server, cluster API key, and secret with your own values.
+4. Copy `consumer.py` to your clipboard.
+5. Open up a new tab in your browser to create a separate sshwifty instance, refer to the "SSH" section above for a refresher on how to connect to your VM in the new sshwifty tab. 
+
+6. create `consumer.py` using a text editor like nano: `nano consumer.py`.
+7. Paste the contents of your clipboard for the `consumer.py` and save the file. note: If you are using nano, then you can **ctrl+O** and **enter** 
+
+8. Now you can produce a few messages in one sshwifty window, and have the consumption happen in realtime. 
+9. First run the consumer: `python3 consumer.py` in one window. 
+10. Now in the other window, launch the producer and watch the messages appear on the consumption window i.e. 
+    ![produce&consume](images/produce&consume.png)
